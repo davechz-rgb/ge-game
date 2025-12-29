@@ -1,0 +1,885 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Geo Kombat — Duolingo-style Study</title>
+<style>
+  :root{
+    --bg:#0b0e14;
+    --panel:#0f1420;
+    --card:#121a2a;
+    --line:rgba(255,255,255,.09);
+    --text:#e9eefc;
+    --muted:#a8b4d6;
+    --pri:#7c8cff;
+    --pri2:#5d6bff;
+    --good:#2cff88;
+    --bad:#ff4b4b;
+    --warn:#ffd166;
+    --chip:rgba(255,255,255,.06);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+    background:
+      radial-gradient(1200px 800px at 20% -10%, rgba(124,140,255,.20), transparent 60%),
+      radial-gradient(900px 700px at 100% 10%, rgba(255,255,255,.06), transparent 55%),
+      var(--bg);
+    color:var(--text);
+    display:flex;
+    justify-content:center;
+    padding:28px 18px;
+  }
+  .app{
+    width:100%;
+    max-width:1080px;
+    background:rgba(15,20,32,.88);
+    border:1px solid var(--line);
+    border-radius:18px;
+    padding:18px 18px 22px;
+    box-shadow:0 28px 90px rgba(0,0,0,.55);
+    backdrop-filter: blur(10px);
+  }
+  .top{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:14px;
+    flex-wrap:wrap;
+  }
+  .brand h1{
+    margin:0;
+    font-size:18px;
+    letter-spacing:.6px;
+    font-weight:950;
+  }
+  .brand .sub{
+    margin-top:6px;
+    font-size:12px;
+    color:var(--muted);
+  }
+  .hud{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    flex-wrap:wrap;
+    justify-content:flex-end;
+  }
+  .chip{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    padding:8px 10px;
+    border-radius:999px;
+    background:var(--chip);
+    border:1px solid var(--line);
+    color:var(--muted);
+    font-size:12px;
+    font-weight:900;
+    letter-spacing:.2px;
+    user-select:none;
+  }
+  .chip b{color:var(--text)}
+  .progressBar{
+    width:180px;
+    height:10px;
+    border-radius:999px;
+    background:rgba(255,255,255,.06);
+    border:1px solid var(--line);
+    overflow:hidden;
+  }
+  .progressFill{
+    height:100%;
+    width:0%;
+    background:linear-gradient(90deg,var(--pri),var(--pri2));
+  }
+  button{
+    appearance:none;
+    border:none;
+    padding:10px 14px;
+    border-radius:999px;
+    font-weight:950;
+    letter-spacing:.2px;
+    cursor:pointer;
+    color:var(--text);
+    background:rgba(255,255,255,.06);
+    border:1px solid var(--line);
+  }
+  button.primary{background:linear-gradient(180deg,var(--pri),var(--pri2)); border:none}
+  button.ghost{background:transparent}
+  button:disabled{opacity:.55; cursor:not-allowed}
+  select{
+    background:rgba(255,255,255,.06);
+    border:1px solid var(--line);
+    color:var(--text);
+    padding:10px 12px;
+    border-radius:12px;
+    font-weight:900;
+    outline:none;
+  }
+  .screen{display:none; margin-top:14px;}
+  .screen.active{display:block;}
+  .card{
+    margin-top:12px;
+    background:linear-gradient(180deg, rgba(18,26,42,.92), rgba(18,26,42,.70));
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:16px;
+  }
+  .grid2{display:grid; grid-template-columns: 1.1fr .9fr; gap:12px;}
+  @media(max-width:920px){.grid2{grid-template-columns:1fr}}
+  .muted{color:var(--muted)}
+  .divider{height:1px;background:var(--line); margin:14px 0;}
+  .modeGrid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  @media(max-width:720px){.modeGrid{grid-template-columns:1fr}}
+  .modeCard{
+    padding:14px;
+    border-radius:16px;
+    border:1px solid var(--line);
+    background:rgba(255,255,255,.04);
+    cursor:pointer;
+    transition: transform .08s ease, border-color .12s ease, background .12s ease;
+  }
+  .modeCard:hover{border-color:rgba(124,140,255,.55);}
+  .modeCard:active{transform:scale(.99);}
+  .modeTitle{font-weight:950; letter-spacing:.2px}
+  .modeDesc{font-size:12px; color:var(--muted); margin-top:6px; line-height:1.35}
+  .locked{opacity:.55; cursor:not-allowed;}
+  .pill{display:inline-block; padding:5px 10px; border-radius:999px; font-size:12px; font-weight:950;
+         background:rgba(255,255,255,.06); border:1px solid var(--line); color:var(--muted);}
+  .pill.good{color:rgba(44,255,136,.9)}
+  .pill.warn{color:rgba(255,209,102,.95)}
+  .pill.bad{color:rgba(255,75,75,.9)}
+  .qaTop{display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap}
+  .tags{display:flex; gap:8px; flex-wrap:wrap}
+  .timerBig{display:none; font-size:56px; font-weight:1000; letter-spacing:1px; color:var(--warn); line-height:1}
+  h2{margin:12px 0 0; font-size:22px; letter-spacing:.2px}
+  .answers{display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:14px;}
+  @media(max-width:720px){ .answers{grid-template-columns:1fr} }
+  .ans{
+    background:rgba(255,255,255,.04);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:14px 14px;
+    cursor:pointer;
+    user-select:none;
+    font-weight:950;
+    letter-spacing:.2px;
+    transition:transform .08s ease, border-color .12s ease, background .12s ease;
+  }
+  .ans:hover{border-color:rgba(124,140,255,.6);}
+  .ans:active{transform:scale(.99);}
+  .ans.lock{pointer-events:none;opacity:.92}
+  .ans.correct{border-color:rgba(44,255,136,.8); background:rgba(44,255,136,.12);}
+  .ans.wrong{border-color:rgba(255,75,75,.8); background:rgba(255,75,75,.10);}
+  .ans.hide{display:none}
+  .footerRow{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:14px}
+  .note{color:var(--muted); font-size:12px; line-height:1.4}
+  .toast{
+    position:fixed;
+    left:50%;
+    bottom:20px;
+    transform:translateX(-50%);
+    background:rgba(18,26,42,.95);
+    border:1px solid var(--line);
+    color:var(--text);
+    padding:10px 12px;
+    border-radius:12px;
+    box-shadow:0 18px 50px rgba(0,0,0,.45);
+    display:none;
+    z-index:999;
+    font-weight:900;
+    letter-spacing:.2px;
+  }
+  .toast.show{display:block;}
+  .shake{animation:shake .18s linear 2;}
+  @keyframes shake{
+    0%{transform:translateX(0)}
+    25%{transform:translateX(-6px)}
+    50%{transform:translateX(6px)}
+    75%{transform:translateX(-4px)}
+    100%{transform:translateX(0)}
+  }
+  .achList{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px}
+  @media(max-width:720px){ .achList{grid-template-columns:1fr} }
+  .ach{
+    padding:12px;
+    border-radius:14px;
+    border:1px solid var(--line);
+    background:rgba(255,255,255,.04);
+    display:flex; gap:10px; align-items:flex-start;
+  }
+  .achIcon{font-size:18px; width:28px}
+  .achTitle{font-weight:950}
+  .achDesc{font-size:12px; color:var(--muted); margin-top:4px; line-height:1.35}
+  .achLocked{opacity:.55}
+  .smallBtn{padding:8px 10px; font-weight:950}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="brand">
+      <h1>Geo Kombat</h1>
+      <div class="sub">Duolingo-style progression · all countries · clean & serious</div>
+    </div>
+    <div class="hud">
+      <div class="chip">Level <b id="level">1</b></div>
+      <div class="chip">XP <b id="xp">0</b></div>
+      <div class="chip">Streak <b id="streak">0</b> <span class="muted">(best <b id="bestStreak">0</b>)</span></div>
+      <div class="chip" title="Progress to next level">
+        <div class="progressBar"><div class="progressFill" id="xpFill"></div></div>
+      </div>
+      <button class="smallBtn" id="btnMenu" type="button">Menu</button>
+    </div>
+  </div>
+
+  <div class="screen active" id="screenMenu">
+    <div class="grid2">
+      <div class="card">
+        <div class="qaTop">
+          <div>
+            <div class="muted" style="font-size:12px;font-weight:900">TODAY</div>
+            <div class="modeTitle" style="margin-top:2px">Daily Challenge</div>
+            <div class="modeDesc">A short run designed to build consistency. Earn bonus XP and a badge when completed.</div>
+          </div>
+          <div class="pill warn" id="dailyTag">Not completed</div>
+        </div>
+        <div class="divider"></div>
+        <div class="footerRow">
+          <button class="primary" id="btnDaily" type="button">Start Daily</button>
+          <button id="btnAchievements" type="button">Achievements</button>
+          <button id="btnResetProgress" type="button" class="ghost">Reset progress</button>
+        </div>
+        <div class="note" style="margin-top:10px">Countries loaded: <b id="count"></b>. Lifeline removes 2 wrong answers. You can earn extra lifelines via streaks.</div>
+      </div>
+
+      <div class="card">
+        <div class="qaTop">
+          <div>
+            <div class="muted" style="font-size:12px;font-weight:900">SETTINGS</div>
+            <div class="modeTitle" style="margin-top:2px">Exam length</div>
+            <div class="modeDesc">Choose how many questions the exam contains.</div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="footerRow">
+          <select id="examCount">
+            <option value="10">10 questions</option>
+            <option value="20" selected>20 questions</option>
+            <option value="30">30 questions</option>
+            <option value="40">40 questions</option>
+          </select>
+          <span class="pill" id="unlockHint">Survival unlocks at Level 3 · Time Attack at Level 5</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="muted" style="font-size:12px;font-weight:900">MODES</div>
+      <div class="modeGrid" style="margin-top:10px">
+        <div class="modeCard" id="modePractice" tabindex="0" role="button" aria-label="Practice mode">
+          <div class="qaTop">
+            <div>
+              <div class="modeTitle">Practice</div>
+              <div class="modeDesc">No pressure. Learn with streaks, XP and gentle penalties.</div>
+            </div>
+            <div class="pill good">+XP</div>
+          </div>
+        </div>
+
+        <div class="modeCard" id="modeExam" tabindex="0" role="button" aria-label="Exam mode">
+          <div class="qaTop">
+            <div>
+              <div class="modeTitle">Exam</div>
+              <div class="modeDesc">Fixed number of questions. Final score shown as 0–100, with mistake review.</div>
+            </div>
+            <div class="pill warn">Score</div>
+          </div>
+        </div>
+
+        <div class="modeCard locked" id="modeTime" tabindex="0" role="button" aria-label="Time Attack mode">
+          <div class="qaTop">
+            <div>
+              <div class="modeTitle">Time Attack</div>
+              <div class="modeDesc">Answer as many as possible before time runs out. Timer is big for pressure.</div>
+            </div>
+            <div class="pill bad">Fast</div>
+          </div>
+          <div class="note" style="margin-top:10px">Unlocks at Level 5.</div>
+        </div>
+
+        <div class="modeCard locked" id="modeSurvival" tabindex="0" role="button" aria-label="Survival mode">
+          <div class="qaTop">
+            <div>
+              <div class="modeTitle">Survival</div>
+              <div class="modeDesc">One mistake ends the run. High risk, high XP.</div>
+            </div>
+            <div class="pill bad">Hard</div>
+          </div>
+          <div class="note" style="margin-top:10px">Unlocks at Level 3.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="screenGame">
+    <div class="card">
+      <div class="qaTop">
+        <div>
+          <div class="tags" id="tags"></div>
+          <div class="note" id="progress"></div>
+        </div>
+        <div class="timerBig" id="timer"></div>
+        <div class="tags">
+          <span class="chip">Lifelines: <b id="lifeCount">3</b></span>
+          <button id="btnLifeline" type="button">Lifeline</button>
+        </div>
+      </div>
+
+      <h2 id="question"></h2>
+      <div class="answers" id="answers"></div>
+
+      <div class="footerRow">
+        <button class="primary" id="btnNext" type="button">Next</button>
+        <button id="btnRestart" type="button">Restart</button>
+        <div class="note" id="hint"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="screenResults">
+    <div class="card">
+      <div class="qaTop">
+        <div>
+          <div class="modeTitle">Results</div>
+          <div class="modeDesc" id="scoreLine"></div>
+        </div>
+        <div class="pill" id="rewardLine">+0 XP</div>
+      </div>
+      <div class="divider"></div>
+      <div class="footerRow">
+        <button class="primary" id="btnReview" type="button">Review mistakes</button>
+        <button id="btnRestart2" type="button">Restart</button>
+      </div>
+      <div id="review"></div>
+    </div>
+  </div>
+
+  <div class="screen" id="screenAchievements">
+    <div class="card">
+      <div class="qaTop">
+        <div>
+          <div class="modeTitle">Achievements</div>
+          <div class="modeDesc">Clean rewards that keep it game-like (not childish).</div>
+        </div>
+        <button id="btnBackFromAch" type="button">Back</button>
+      </div>
+      <div class="divider"></div>
+      <div class="achList" id="achList"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script id="countriesData" type="application/json">[{"name": "Afghanistan", "code": "AF", "continent": "Asia", "capital": "Kabul", "government": "Islamic republic", "religion": "Islam"}, {"name": "Albania", "code": "AL", "continent": "Europe", "capital": "Tirana", "government": "Parliamentary republic", "religion": "No official religion"}, {"name": "Algeria", "code": "DZ", "continent": "Africa", "capital": "Algiers", "government": "Presidential republic", "religion": "Islam"}, {"name": "Andorra", "code": "AD", "continent": "Europe", "capital": "Andorra la Vella", "government": "Parliamentary co-principality", "religion": "Christianity (Catholic)"}, {"name": "Angola", "code": "AO", "continent": "Africa", "capital": "Luanda", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Antigua and Barbuda", "code": "AG", "continent": "Americas", "capital": "St. John's", "government": "Parliamentary monarchy", "religion": "No official religion"}, {"name": "Argentina", "code": "AR", "continent": "Americas", "capital": "Buenos Aires", "government": "Federal presidential republic", "religion": "No official religion"}, {"name": "Armenia", "code": "AM", "continent": "Asia", "capital": "Yerevan", "government": "Parliamentary republic", "religion": "Christianity (Apostolic)"}, {"name": "Australia", "code": "AU", "continent": "Oceania", "capital": "Canberra", "government": "Parliamentary monarchy", "religion": "No official religion"}, {"name": "Austria", "code": "AT", "continent": "Europe", "capital": "Vienna", "government": "Federal parliamentary republic", "religion": "No official religion"}, {"name": "Azerbaijan", "code": "AZ", "continent": "Asia", "capital": "Baku", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Bahamas", "code": "BS", "continent": "Americas", "capital": "Nassau", "government": "Parliamentary monarchy", "religion": "No official religion"}, {"name": "Bahrain", "code": "BH", "continent": "Asia", "capital": "Manama", "government": "Constitutional monarchy", "religion": "Islam"}, {"name": "Bangladesh", "code": "BD", "continent": "Asia", "capital": "Dhaka", "government": "Parliamentary republic", "religion": "Islam"}, {"name": "Barbados", "code": "BB", "continent": "Americas", "capital": "Bridgetown", "government": "Parliamentary republic", "religion": "No official religion"}, {"name": "Belarus", "code": "BY", "continent": "Europe", "capital": "Minsk", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Belgium", "code": "BE", "continent": "Europe", "capital": "Brussels", "government": "Federal parliamentary monarchy", "religion": "No official religion"}, {"name": "Belize", "code": "BZ", "continent": "Americas", "capital": "Belmopan", "government": "Parliamentary monarchy", "religion": "No official religion"}, {"name": "Benin", "code": "BJ", "continent": "Africa", "capital": "Porto-Novo", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Bhutan", "code": "BT", "continent": "Asia", "capital": "Thimphu", "government": "Constitutional monarchy", "religion": "Buddhism"}, {"name": "Bolivia", "code": "BO", "continent": "Americas", "capital": "Sucre", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Bosnia and Herzegovina", "code": "BA", "continent": "Europe", "capital": "Sarajevo", "government": "Federal parliamentary republic", "religion": "No official religion"}, {"name": "Botswana", "code": "BW", "continent": "Africa", "capital": "Gaborone", "government": "Parliamentary republic", "religion": "No official religion"}, {"name": "Brazil", "code": "BR", "continent": "Americas", "capital": "Brasília", "government": "Federal presidential republic", "religion": "No official religion"}, {"name": "Brunei", "code": "BN", "continent": "Asia", "capital": "Bandar Seri Begawan", "government": "Absolute monarchy", "religion": "Islam"}, {"name": "Bulgaria", "code": "BG", "continent": "Europe", "capital": "Sofia", "government": "Parliamentary republic", "religion": "No official religion"}, {"name": "Burkina Faso", "code": "BF", "continent": "Africa", "capital": "Ouagadougou", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Burundi", "code": "BI", "continent": "Africa", "capital": "Gitega", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Cambodia", "code": "KH", "continent": "Asia", "capital": "Phnom Penh", "government": "Parliamentary monarchy", "religion": "Buddhism"}, {"name": "Cameroon", "code": "CM", "continent": "Africa", "capital": "Yaoundé", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Canada", "code": "CA", "continent": "Americas", "capital": "Ottawa", "government": "Parliamentary monarchy", "religion": "No official religion"}, {"name": "Cape Verde", "code": "CV", "continent": "Africa", "capital": "Praia", "government": "Semi-presidential republic", "religion": "No official religion"}, {"name": "Central African Republic", "code": "CF", "continent": "Africa", "capital": "Bangui", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Chad", "code": "TD", "continent": "Africa", "capital": "N'Djamena", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Chile", "code": "CL", "continent": "Americas", "capital": "Santiago", "government": "Presidential republic", "religion": "No official religion"}, {"name": "China", "code": "CN", "continent": "Asia", "capital": "Beijing", "government": "One-party state", "religion": "No official religion"}, {"name": "Colombia", "code": "CO", "continent": "Americas", "capital": "Bogotá", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Comoros", "code": "KM", "continent": "Africa", "capital": "Moroni", "government": "Federal presidential republic", "religion": "Islam"}, {"name": "Costa Rica", "code": "CR", "continent": "Americas", "capital": "San José", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Croatia", "code": "HR", "continent": "Europe", "capital": "Zagreb", "government": "Parliamentary republic", "religion": "No official religion"}, {"name": "Cuba", "code": "CU", "continent": "Americas", "capital": "Havana", "government": "One-party socialist republic", "religion": "No official religion"}, {"name": "Cyprus", "code": "CY", "continent": "Europe", "capital": "Nicosia", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Czech Republic", "code": "CZ", "continent": "Europe", "capital": "Prague", "government": "Parliamentary republic", "religion": "No official religion"}, {"name": "Denmark", "code": "DK", "continent": "Europe", "capital": "Copenhagen", "government": "Parliamentary monarchy", "religion": "Christianity (Lutheran)"}, {"name": "Djibouti", "code": "DJ", "continent": "Africa", "capital": "Djibouti", "government": "Presidential republic", "religion": "Islam"}, {"name": "Dominica", "code": "DM", "continent": "Americas", "capital": "Roseau", "government": "Parliamentary republic", "religion": "No official religion"}, {"name": "Dominican Republic", "code": "DO", "continent": "Americas", "capital": "Santo Domingo", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Ecuador", "code": "EC", "continent": "Americas", "capital": "Quito", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Egypt", "code": "EG", "continent": "Africa", "capital": "Cairo", "government": "Presidential republic", "religion": "Islam"}, {"name": "El Salvador", "code": "SV", "continent": "Americas", "capital": "San Salvador", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Estonia", "code": "EE", "continent": "Europe", "capital": "Tallinn", "government": "Parliamentary republic", "religion": "No official religion"}, {"name": "Eswatini", "code": "SZ", "continent": "Africa", "capital": "Mbabane", "government": "Absolute monarchy", "religion": "No official religion"}, {"name": "Ethiopia", "code": "ET", "continent": "Africa", "capital": "Addis Ababa", "government": "Federal parliamentary republic", "religion": "No official religion"}, {"name": "Finland", "code": "FI", "continent": "Europe", "capital": "Helsinki", "government": "Parliamentary republic", "religion": "No official religion"}, {"name": "France", "code": "FR", "continent": "Europe", "capital": "Paris", "government": "Semi-presidential republic", "religion": "No official religion"}, {"name": "Gabon", "code": "GA", "continent": "Africa", "capital": "Libreville", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Gambia", "code": "GM", "continent": "Africa", "capital": "Banjul", "government": "Presidential republic", "religion": "Islam"}, {"name": "Georgia", "code": "GE", "continent": "Asia", "capital": "Tbilisi", "government": "Parliamentary republic", "religion": "Christianity (Orthodox)"}, {"name": "Germany", "code": "DE", "continent": "Europe", "capital": "Berlin", "government": "Federal parliamentary republic", "religion": "No official religion"}, {"name": "Ghana", "code": "GH", "continent": "Africa", "capital": "Accra", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Greece", "code": "GR", "continent": "Europe", "capital": "Athens", "government": "Parliamentary republic", "religion": "Christianity (Orthodox)"}, {"name": "Grenada", "code": "GD", "continent": "Americas", "capital": "St. George's", "government": "Parliamentary monarchy", "religion": "No official religion"}, {"name": "Guatemala", "code": "GT", "continent": "Americas", "capital": "Guatemala City", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Guinea", "code": "GN", "continent": "Africa", "capital": "Conakry", "government": "Presidential republic", "religion": "Islam"}, {"name": "Guyana", "code": "GY", "continent": "Americas", "capital": "Georgetown", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Haiti", "code": "HT", "continent": "Americas", "capital": "Port-au-Prince", "government": "Semi-presidential republic", "religion": "No official religion"}, {"name": "Honduras", "code": "HN", "continent": "Americas", "capital": "Tegucigalpa", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Hungary", "code": "HU", "continent": "Europe", "capital": "Budapest", "government": "Parliamentary republic", "religion": "No official religion"}, {"name": "Iceland", "code": "IS", "continent": "Europe", "capital": "Reykjavík", "government": "Parliamentary republic", "religion": "Christianity (Lutheran)"}, {"name": "India", "code": "IN", "continent": "Asia", "capital": "New Delhi", "government": "Federal parliamentary republic", "religion": "No official religion"}, {"name": "Indonesia", "code": "ID", "continent": "Asia", "capital": "Jakarta", "government": "Presidential republic", "religion": "Islam"}, {"name": "Iran", "code": "IR", "continent": "Asia", "capital": "Tehran", "government": "Islamic republic", "religion": "Islam"}, {"name": "Iraq", "code": "IQ", "continent": "Asia", "capital": "Baghdad", "government": "Federal parliamentary republic", "religion": "Islam"}, {"name": "Ireland", "code": "IE", "continent": "Europe", "capital": "Dublin", "government": "Parliamentary republic", "religion": "No official religion"}, {"name": "Israel", "code": "IL", "continent": "Asia", "capital": "Jerusalem", "government": "Parliamentary republic", "religion": "Judaism"}, {"name": "Italy", "code": "IT", "continent": "Europe", "capital": "Rome", "government": "Parliamentary republic", "religion": "No official religion"}, {"name": "Jamaica", "code": "JM", "continent": "Americas", "capital": "Kingston", "government": "Parliamentary monarchy", "religion": "No official religion"}, {"name": "Japan", "code": "JP", "continent": "Asia", "capital": "Tokyo", "government": "Parliamentary monarchy", "religion": "No official religion"}, {"name": "Jordan", "code": "JO", "continent": "Asia", "capital": "Amman", "government": "Constitutional monarchy", "religion": "Islam"}, {"name": "Kazakhstan", "code": "KZ", "continent": "Asia", "capital": "Astana", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Kenya", "code": "KE", "continent": "Africa", "capital": "Nairobi", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Kuwait", "code": "KW", "continent": "Asia", "capital": "Kuwait City", "government": "Constitutional monarchy", "religion": "Islam"}, {"name": "Kyrgyzstan", "code": "KG", "continent": "Asia", "capital": "Bishkek", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Laos", "code": "LA", "continent": "Asia", "capital": "Vientiane", "government": "One-party socialist republic", "religion": "No official religion"}, {"name": "Latvia", "code": "LV", "continent": "Europe", "capital": "Riga", "government": "Parliamentary republic", "religion": "No official religion"}, {"name": "Lebanon", "code": "LB", "continent": "Asia", "capital": "Beirut", "government": "Parliamentary republic", "religion": "No official religion"}, {"name": "Lesotho", "code": "LS", "continent": "Africa", "capital": "Maseru", "government": "Constitutional monarchy", "religion": "No official religion"}, {"name": "Liberia", "code": "LR", "continent": "Africa", "capital": "Monrovia", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Libya", "code": "LY", "continent": "Africa", "capital": "Tripoli", "government": "Provisional government", "religion": "Islam"}, {"name": "Liechtenstein", "code": "LI", "continent": "Europe", "capital": "Vaduz", "government": "Constitutional monarchy", "religion": "Christianity (Catholic)"}, {"name": "Lithuania", "code": "LT", "continent": "Europe", "capital": "Vilnius", "government": "Parliamentary republic", "religion": "No official religion"}, {"name": "Luxembourg", "code": "LU", "continent": "Europe", "capital": "Luxembourg", "government": "Parliamentary monarchy", "religion": "No official religion"}, {"name": "Madagascar", "code": "MG", "continent": "Africa", "capital": "Antananarivo", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Malawi", "code": "MW", "continent": "Africa", "capital": "Lilongwe", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Malaysia", "code": "MY", "continent": "Asia", "capital": "Kuala Lumpur", "government": "Federal parliamentary monarchy", "religion": "Islam"}, {"name": "Maldives", "code": "MV", "continent": "Asia", "capital": "Malé", "government": "Presidential republic", "religion": "Islam"}, {"name": "Mali", "code": "ML", "continent": "Africa", "capital": "Bamako", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Malta", "code": "MT", "continent": "Europe", "capital": "Valletta", "government": "Parliamentary republic", "religion": "Christianity (Catholic)"}, {"name": "Mauritania", "code": "MR", "continent": "Africa", "capital": "Nouakchott", "government": "Presidential republic", "religion": "Islam"}, {"name": "Mauritius", "code": "MU", "continent": "Africa", "capital": "Port Louis", "government": "Parliamentary republic", "religion": "No official religion"}, {"name": "Mexico", "code": "MX", "continent": "Americas", "capital": "Mexico City", "government": "Federal presidential republic", "religion": "No official religion"}, {"name": "Moldova", "code": "MD", "continent": "Europe", "capital": "Chișinău", "government": "Parliamentary republic", "religion": "No official religion"}, {"name": "Monaco", "code": "MC", "continent": "Europe", "capital": "Monaco", "government": "Constitutional monarchy", "religion": "Christianity (Catholic)"}, {"name": "Mongolia", "code": "MN", "continent": "Asia", "capital": "Ulaanbaatar", "government": "Parliamentary republic", "religion": "No official religion"}, {"name": "Montenegro", "code": "ME", "continent": "Europe", "capital": "Podgorica", "government": "Parliamentary republic", "religion": "No official religion"}, {"name": "Morocco", "code": "MA", "continent": "Africa", "capital": "Rabat", "government": "Constitutional monarchy", "religion": "Islam"}, {"name": "Mozambique", "code": "MZ", "continent": "Africa", "capital": "Maputo", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Myanmar", "code": "MM", "continent": "Asia", "capital": "Naypyidaw", "government": "Military junta", "religion": "Buddhism"}, {"name": "Namibia", "code": "NA", "continent": "Africa", "capital": "Windhoek", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Nepal", "code": "NP", "continent": "Asia", "capital": "Kathmandu", "government": "Federal parliamentary republic", "religion": "No official religion"}, {"name": "Netherlands", "code": "NL", "continent": "Europe", "capital": "Amsterdam", "government": "Parliamentary monarchy", "religion": "No official religion"}, {"name": "New Zealand", "code": "NZ", "continent": "Oceania", "capital": "Wellington", "government": "Parliamentary monarchy", "religion": "No official religion"}, {"name": "Nicaragua", "code": "NI", "continent": "Americas", "capital": "Managua", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Niger", "code": "NE", "continent": "Africa", "capital": "Niamey", "government": "Presidential republic", "religion": "Islam"}, {"name": "Nigeria", "code": "NG", "continent": "Africa", "capital": "Abuja", "government": "Federal presidential republic", "religion": "No official religion"}, {"name": "North Korea", "code": "KP", "continent": "Asia", "capital": "Pyongyang", "government": "One-party state", "religion": "No official religion"}, {"name": "North Macedonia", "code": "MK", "continent": "Europe", "capital": "Skopje", "government": "Parliamentary republic", "religion": "No official religion"}, {"name": "Norway", "code": "NO", "continent": "Europe", "capital": "Oslo", "government": "Parliamentary monarchy", "religion": "Christianity (Lutheran)"}, {"name": "Oman", "code": "OM", "continent": "Asia", "capital": "Muscat", "government": "Absolute monarchy", "religion": "Islam"}, {"name": "Pakistan", "code": "PK", "continent": "Asia", "capital": "Islamabad", "government": "Federal parliamentary republic", "religion": "Islam"}, {"name": "Panama", "code": "PA", "continent": "Americas", "capital": "Panama City", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Paraguay", "code": "PY", "continent": "Americas", "capital": "Asunción", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Peru", "code": "PE", "continent": "Americas", "capital": "Lima", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Philippines", "code": "PH", "continent": "Asia", "capital": "Manila", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Poland", "code": "PL", "continent": "Europe", "capital": "Warsaw", "government": "Parliamentary republic", "religion": "No official religion"}, {"name": "Portugal", "code": "PT", "continent": "Europe", "capital": "Lisbon", "government": "Parliamentary republic", "religion": "No official religion"}, {"name": "Qatar", "code": "QA", "continent": "Asia", "capital": "Doha", "government": "Absolute monarchy", "religion": "Islam"}, {"name": "Romania", "code": "RO", "continent": "Europe", "capital": "Bucharest", "government": "Semi-presidential republic", "religion": "No official religion"}, {"name": "Russia", "code": "RU", "continent": "Europe", "capital": "Moscow", "government": "Semi-presidential republic", "religion": "No official religion"}, {"name": "Rwanda", "code": "RW", "continent": "Africa", "capital": "Kigali", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Saint Kitts and Nevis", "code": "KN", "continent": "Americas", "capital": "Basseterre", "government": "Parliamentary monarchy", "religion": "No official religion"}, {"name": "Saint Lucia", "code": "LC", "continent": "Americas", "capital": "Castries", "government": "Parliamentary monarchy", "religion": "No official religion"}, {"name": "Saint Vincent and the Grenadines", "code": "VC", "continent": "Americas", "capital": "Kingstown", "government": "Parliamentary monarchy", "religion": "No official religion"}, {"name": "San Marino", "code": "SM", "continent": "Europe", "capital": "San Marino", "government": "Parliamentary republic", "religion": "Christianity (Catholic)"}, {"name": "Saudi Arabia", "code": "SA", "continent": "Asia", "capital": "Riyadh", "government": "Absolute monarchy", "religion": "Islam"}, {"name": "Senegal", "code": "SN", "continent": "Africa", "capital": "Dakar", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Serbia", "code": "RS", "continent": "Europe", "capital": "Belgrade", "government": "Parliamentary republic", "religion": "No official religion"}, {"name": "Seychelles", "code": "SC", "continent": "Africa", "capital": "Victoria", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Sierra Leone", "code": "SL", "continent": "Africa", "capital": "Freetown", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Singapore", "code": "SG", "continent": "Asia", "capital": "Singapore", "government": "Parliamentary republic", "religion": "No official religion"}, {"name": "Slovakia", "code": "SK", "continent": "Europe", "capital": "Bratislava", "government": "Parliamentary republic", "religion": "No official religion"}, {"name": "Slovenia", "code": "SI", "continent": "Europe", "capital": "Ljubljana", "government": "Parliamentary republic", "religion": "No official religion"}, {"name": "Solomon Islands", "code": "SB", "continent": "Oceania", "capital": "Honiara", "government": "Parliamentary monarchy", "religion": "No official religion"}, {"name": "Somalia", "code": "SO", "continent": "Africa", "capital": "Mogadishu", "government": "Federal parliamentary republic", "religion": "Islam"}, {"name": "South Africa", "code": "ZA", "continent": "Africa", "capital": "Pretoria", "government": "Parliamentary republic", "religion": "No official religion"}, {"name": "South Korea", "code": "KR", "continent": "Asia", "capital": "Seoul", "government": "Presidential republic", "religion": "No official religion"}, {"name": "South Sudan", "code": "SS", "continent": "Africa", "capital": "Juba", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Spain", "code": "ES", "continent": "Europe", "capital": "Madrid", "government": "Parliamentary monarchy", "religion": "No official religion"}, {"name": "Sri Lanka", "code": "LK", "continent": "Asia", "capital": "Sri Jayawardenepura Kotte", "government": "Semi-presidential republic", "religion": "No official religion"}, {"name": "Sudan", "code": "SD", "continent": "Africa", "capital": "Khartoum", "government": "Provisional government", "religion": "Islam"}, {"name": "Suriname", "code": "SR", "continent": "Americas", "capital": "Paramaribo", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Sweden", "code": "SE", "continent": "Europe", "capital": "Stockholm", "government": "Parliamentary monarchy", "religion": "Christianity (Lutheran)"}, {"name": "Switzerland", "code": "CH", "continent": "Europe", "capital": "Bern", "government": "Federal parliamentary republic", "religion": "No official religion"}, {"name": "Syria", "code": "SY", "continent": "Asia", "capital": "Damascus", "government": "Presidential republic", "religion": "Islam"}, {"name": "Taiwan", "code": "TW", "continent": "Asia", "capital": "Taipei", "government": "Semi-presidential republic", "religion": "No official religion"}, {"name": "Tajikistan", "code": "TJ", "continent": "Asia", "capital": "Dushanbe", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Tanzania", "code": "TZ", "continent": "Africa", "capital": "Dodoma", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Thailand", "code": "TH", "continent": "Asia", "capital": "Bangkok", "government": "Constitutional monarchy", "religion": "Buddhism"}, {"name": "Togo", "code": "TG", "continent": "Africa", "capital": "Lomé", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Trinidad and Tobago", "code": "TT", "continent": "Americas", "capital": "Port of Spain", "government": "Parliamentary republic", "religion": "No official religion"}, {"name": "Tunisia", "code": "TN", "continent": "Africa", "capital": "Tunis", "government": "Presidential republic", "religion": "Islam"}, {"name": "Turkey", "code": "TR", "continent": "Asia", "capital": "Ankara", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Turkmenistan", "code": "TM", "continent": "Asia", "capital": "Ashgabat", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Uganda", "code": "UG", "continent": "Africa", "capital": "Kampala", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Ukraine", "code": "UA", "continent": "Europe", "capital": "Kyiv", "government": "Semi-presidential republic", "religion": "No official religion"}, {"name": "United Arab Emirates", "code": "AE", "continent": "Asia", "capital": "Abu Dhabi", "government": "Federal monarchy", "religion": "Islam"}, {"name": "United Kingdom", "code": "GB", "continent": "Europe", "capital": "London", "government": "Parliamentary monarchy", "religion": "Christianity (Anglican)"}, {"name": "United States", "code": "US", "continent": "Americas", "capital": "Washington, D.C.", "government": "Federal presidential republic", "religion": "No official religion"}, {"name": "Uruguay", "code": "UY", "continent": "Americas", "capital": "Montevideo", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Uzbekistan", "code": "UZ", "continent": "Asia", "capital": "Tashkent", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Vanuatu", "code": "VU", "continent": "Oceania", "capital": "Port Vila", "government": "Parliamentary republic", "religion": "No official religion"}, {"name": "Vatican City", "code": "VA", "continent": "Europe", "capital": "Vatican City", "government": "Elective theocracy", "religion": "Christianity (Catholic)"}, {"name": "Venezuela", "code": "VE", "continent": "Americas", "capital": "Caracas", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Vietnam", "code": "VN", "continent": "Asia", "capital": "Hanoi", "government": "One-party socialist republic", "religion": "No official religion"}, {"name": "Yemen", "code": "YE", "continent": "Asia", "capital": "Sana'a", "government": "Provisional government", "religion": "Islam"}, {"name": "Zambia", "code": "ZM", "continent": "Africa", "capital": "Lusaka", "government": "Presidential republic", "religion": "No official religion"}, {"name": "Zimbabwe", "code": "ZW", "continent": "Africa", "capital": "Harare", "government": "Presidential republic", "religion": "No official religion"}]</script>
+<script>
+'use strict';
+
+document.addEventListener('DOMContentLoaded', () => {
+  const COUNTRIES = JSON.parse(document.getElementById('countriesData').textContent);
+  const $ = (id) => document.getElementById(id);
+  $('count').textContent = String(COUNTRIES.length);
+
+  // keep UI clickable even if something goes wrong
+  window.addEventListener('error', (e) => console.error('JS error:', e.message, e.error));
+
+  const flag = (code) => String.fromCodePoint(0x1F1E6 + code.charCodeAt(0) - 65, 0x1F1E6 + code.charCodeAt(1) - 65);
+  const shuffle = (a) => a.sort(() => Math.random() - 0.5);
+  const canon = (s) => String(s).toLowerCase().replace(/\(.*?\)/g,'').replace(/\s+/g,' ').trim();
+  const clamp = (n,a,b) => Math.max(a, Math.min(b, n));
+
+  function uniqueOptions(correct, pool, n) {
+    const seen = new Set([canon(correct)]);
+    const out = [];
+    for (const p of shuffle(pool.slice())) {
+      const k = canon(p);
+      if (!seen.has(k)) { seen.add(k); out.push(p); }
+      if (out.length === n) break;
+    }
+    return out;
+  }
+
+  function toast(msg) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 1800);
+  }
+
+  // Progression store
+  const STORE_KEY = 'geo_kombat_progress_v1';
+  const todayKey = () => new Date().toISOString().slice(0,10);
+
+  const defaultProgress = () => ({
+    xp: 0,
+    level: 1,
+    bestStreak: 0,
+    daily: { date: '', completed: false },
+    achievements: {},
+    stats: { FLAG: {c:0,t:0}, CAP: {c:0,t:0}, GOV: {c:0,t:0}, REL: {c:0,t:0} },
+    countryMistakes: {},
+  });
+
+  function loadProgress() {
+    try{
+      const raw = localStorage.getItem(STORE_KEY);
+      if(!raw) return defaultProgress();
+      const p = JSON.parse(raw);
+      return Object.assign(defaultProgress(), p);
+    }catch{
+      return defaultProgress();
+    }
+  }
+  function saveProgress() { localStorage.setItem(STORE_KEY, JSON.stringify(PROG)); }
+
+  let PROG = loadProgress();
+
+  function xpToNext(level) { return Math.round(140 + Math.pow(level, 1.15) * 55); }
+
+  function setLocked(id, locked) {
+    const el = $(id);
+    if (!el) return;
+    if (locked) el.classList.add('locked');
+    else el.classList.remove('locked');
+  }
+
+  function syncHUD() {
+    $('xp').textContent = String(PROG.xp);
+    $('level').textContent = String(PROG.level);
+    $('bestStreak').textContent = String(PROG.bestStreak);
+
+    const next = xpToNext(PROG.level);
+    $('xpFill').style.width = clamp((PROG.xp / next) * 100, 0, 100).toFixed(1) + '%';
+
+    const isToday = (PROG.daily.date === todayKey());
+    const done = isToday && PROG.daily.completed;
+    $('dailyTag').textContent = done ? 'Completed' : 'Not completed';
+    $('dailyTag').className = done ? 'pill good' : 'pill warn';
+
+    setLocked('modeTime', PROG.level < 5);
+    setLocked('modeSurvival', PROG.level < 3);
+  }
+
+  function unlockAch(id) {
+    if (PROG.achievements[id]) return;
+    PROG.achievements[id] = true;
+    saveProgress();
+    toast('Achievement unlocked');
+  }
+
+  function addXP(amount) {
+    amount = Math.max(0, Math.round(amount));
+    if (!amount) return 0;
+    PROG.xp += amount;
+
+    let leveled = 0;
+    while (PROG.xp >= xpToNext(PROG.level)) {
+      PROG.xp -= xpToNext(PROG.level);
+      PROG.level += 1;
+      leveled += 1;
+    }
+    if (leveled) {
+      toast(leveled === 1 ? `Level up → ${PROG.level}` : `Level up x${leveled} → ${PROG.level}`);
+      if (PROG.level === 3) toast('Survival unlocked');
+      if (PROG.level === 5) toast('Time Attack unlocked');
+    }
+
+    saveProgress();
+    syncHUD();
+    return amount;
+  }
+
+  function setBestStreak(s) {
+    PROG.bestStreak = Math.max(PROG.bestStreak, s);
+    saveProgress();
+    $('bestStreak').textContent = String(PROG.bestStreak);
+  }
+
+  const ACH = [
+    {id:'daily1', icon:'📅', title:'Daily discipline', desc:'Complete today\'s Daily Challenge.'},
+    {id:'streak5', icon:'🔥', title:'On a roll', desc:'Reach a 5-answer streak.'},
+    {id:'streak10', icon:'⚡', title:'Unstoppable', desc:'Reach a 10-answer streak.'},
+    {id:'flags50', icon:'🚩', title:'Flag hunter', desc:'Answer 50 flag questions correctly.'},
+    {id:'caps50', icon:'🏙️', title:'Capital analyst', desc:'Answer 50 capital questions correctly.'},
+    {id:'score90', icon:'🎯', title:'Exam 90+', desc:'Score 90/100 or higher in Exam.'},
+    {id:'time40', icon:'⏱️', title:'Fast hands', desc:'Get 40+ correct in Time Attack.'},
+  ];
+
+  function renderAchievements() {
+    const wrap = $('achList');
+    wrap.innerHTML = '';
+    ACH.forEach(a => {
+      const unlocked = !!PROG.achievements[a.id];
+      const div = document.createElement('div');
+      div.className = 'ach' + (unlocked ? '' : ' achLocked');
+      div.innerHTML = `
+        <div class="achIcon">${a.icon}</div>
+        <div>
+          <div class="achTitle">${a.title}</div>
+          <div class="achDesc">${a.desc}</div>
+        </div>
+        <div style="margin-left:auto" class="pill">${unlocked ? 'Unlocked' : 'Locked'}</div>
+      `;
+      wrap.appendChild(div);
+    });
+  }
+
+  const screens = {
+    menu: $('screenMenu'),
+    game: $('screenGame'),
+    results: $('screenResults'),
+    achievements: $('screenAchievements')
+  };
+  function show(which) {
+    Object.values(screens).forEach(s => s.classList.remove('active'));
+    screens[which].classList.add('active');
+    $('btnMenu').disabled = (which === 'menu');
+  }
+
+  // Weighted pick (spaced repetition feel)
+  function weightedCountryPick() {
+    const weights = COUNTRIES.map(c => 1 + Math.min(6, (PROG.countryMistakes[c.code] || 0) / 2));
+    let sum = 0;
+    for (const w of weights) sum += w;
+    let r = Math.random() * sum;
+    for (let i=0; i<COUNTRIES.length; i++) {
+      r -= weights[i];
+      if (r <= 0) return COUNTRIES[i];
+    }
+    return COUNTRIES[Math.floor(Math.random() * COUNTRIES.length)];
+  }
+
+  function buildQuestion(forceType=null) {
+    const c = weightedCountryPick();
+    const types = ['FLAG','CAP','GOV','REL'];
+    const t = forceType || types[Math.floor(Math.random() * types.length)];
+
+    if (t === 'FLAG') {
+      const correct = flag(c.code);
+      const pool = COUNTRIES.filter(x=>x.code!==c.code).map(x=>flag(x.code));
+      return {type:t, q:`Which flag belongs to ${c.name}?`, a:correct,
+        options: shuffle([correct, ...uniqueOptions(correct, pool, 3)]), meta:c};
+    }
+    if (t === 'CAP') {
+      const correct = c.capital;
+      const pool = COUNTRIES.filter(x=>x.code!==c.code).map(x=>x.capital);
+      return {type:t, q:`Capital of ${c.name}`, a:correct,
+        options: shuffle([correct, ...uniqueOptions(correct, pool, 3)]), meta:c};
+    }
+    if (t === 'GOV') {
+      const correct = c.government;
+      const pool = COUNTRIES.filter(x=>x.code!==c.code).map(x=>x.government);
+      return {type:t, q:`Government type of ${c.name}`, a:correct,
+        options: shuffle([correct, ...uniqueOptions(correct, pool, 3)]), meta:c};
+    }
+    // Religion: 2 options only
+    const correct = c.religion;
+    const pool = COUNTRIES.filter(x=>x.religion!==correct).map(x=>x.religion);
+    return {type:'REL', q:`Official religion of ${c.name}`, a:correct,
+      options: shuffle([correct, ...uniqueOptions(correct, pool, 1)]), meta:c};
+  }
+
+  // Run state
+  let gameMode = null; // practice | exam | time | survival | daily
+  let current = null;
+  let locked = false;
+  let score = 0;
+  let total = 0;
+  let examLimit = 20;
+  let lifelines = 3;
+  let streak = 0;
+  let timeLeft = 0;
+  let timerInt = null;
+  let mistakes = [];
+  let earnedXPThisRun = 0;
+
+  function syncRunHUD() {
+    $('lifeCount').textContent = String(lifelines);
+    $('streak').textContent = String(streak);
+  }
+
+  function resetRun() {
+    clearInterval(timerInt);
+    timerInt = null;
+    current = null;
+    locked = false;
+    score = 0; total = 0; mistakes = [];
+    lifelines = 3;
+    streak = 0;
+    timeLeft = 0;
+    earnedXPThisRun = 0;
+    syncRunHUD();
+    $('timer').style.display = 'none';
+    $('timer').textContent = '';
+    $('hint').textContent = '';
+    $('answers').innerHTML = '';
+    $('tags').innerHTML = '';
+    $('progress').textContent = '';
+  }
+
+  function bumpStats(type, correct) {
+    const s = PROG.stats[type] || {c:0,t:0};
+    s.t += 1;
+    if (correct) s.c += 1;
+    PROG.stats[type] = s;
+  }
+
+  function streakRewards() {
+    if (streak === 5) unlockAch('streak5');
+    if (streak === 10) unlockAch('streak10');
+    if (streak > 0 && streak % 5 === 0) {
+      lifelines = Math.min(5, lifelines + 1);
+      syncRunHUD();
+      toast('+1 lifeline (streak)');
+    }
+  }
+
+  function renderQ() {
+    locked = false;
+    $('hint').textContent = '';
+
+    if (gameMode === 'daily') {
+      const plan = ['CAP','CAP','CAP','CAP','FLAG','FLAG','FLAG','GOV','GOV','REL'];
+      const type = plan[total] || null;
+      current = buildQuestion(type);
+      $('progress').textContent = `Daily ${total+1} / 10`;
+    } else if (gameMode === 'exam') {
+      current = buildQuestion();
+      $('progress').textContent = `Question ${total+1} / ${examLimit}`;
+    } else {
+      current = buildQuestion();
+      $('progress').textContent = '';
+    }
+
+    const tags = $('tags');
+    tags.innerHTML = '';
+    const t1 = document.createElement('span'); t1.className='pill'; t1.textContent = current.meta.continent || '—';
+    const t2 = document.createElement('span'); t2.className='pill'; t2.textContent = current.type;
+    tags.appendChild(t1); tags.appendChild(t2);
+
+    $('question').textContent = current.q;
+
+    const answers = $('answers');
+    answers.innerHTML = '';
+    current.options.forEach(opt => {
+      const d = document.createElement('div');
+      d.className = 'ans';
+      d.textContent = opt;
+      d.addEventListener('click', () => choose(opt, d));
+      answers.appendChild(d);
+    });
+  }
+
+  function choose(opt, node) {
+    if (locked) return;
+    locked = true;
+
+    document.querySelectorAll('.ans').forEach(el => {
+      if (el.textContent === current.a) el.classList.add('correct');
+      el.classList.add('lock');
+    });
+
+    const isCorrect = (opt === current.a);
+    if (!isCorrect) {
+      node.classList.add('wrong');
+      $('screenGame').classList.add('shake');
+      setTimeout(()=> $('screenGame').classList.remove('shake'), 450);
+    }
+
+    total++;
+    if (isCorrect) score++;
+
+    bumpStats(current.type, isCorrect);
+
+    if (!isCorrect) {
+      PROG.countryMistakes[current.meta.code] = (PROG.countryMistakes[current.meta.code] || 0) + 1;
+      mistakes.push({q: current.q, picked: opt, correct: current.a});
+    } else {
+      const k = PROG.countryMistakes[current.meta.code] || 0;
+      if (k > 0) PROG.countryMistakes[current.meta.code] = Math.max(0, k - 1);
+    }
+
+    let gained = 0;
+    if (isCorrect) {
+      streak++;
+      setBestStreak(streak);
+      gained = 10;
+      if (streak >= 3) gained += 2;
+      if (streak >= 7) gained += 4;
+      gained += Math.min(10, Math.floor(streak/5) * 2);
+      gained = Math.min(26, gained);
+      streakRewards();
+
+      if (current.type === 'FLAG' && (PROG.stats.FLAG?.c || 0) >= 50) unlockAch('flags50');
+      if (current.type === 'CAP' && (PROG.stats.CAP?.c || 0) >= 50) unlockAch('caps50');
+    } else {
+      streak = 0;
+    }
+    syncRunHUD();
+
+    if (gained) {
+      earnedXPThisRun += gained;
+      addXP(gained);
+      toast(`+${gained} XP`);
+    }
+
+    saveProgress();
+    syncHUD();
+
+    if (gameMode === 'survival' && !isCorrect) return endGame('Survival ended (1 mistake).');
+    if (gameMode === 'exam' && total >= examLimit) return endGame();
+    if (gameMode === 'daily' && total >= 10) {
+      const bonus = 40;
+      earnedXPThisRun += bonus;
+      addXP(bonus);
+      PROG.daily = { date: todayKey(), completed: true };
+      unlockAch('daily1');
+      saveProgress();
+      syncHUD();
+      return endGame('Daily complete. Bonus XP granted.');
+    }
+    if (gameMode === 'time') {
+      setTimeout(renderQ, 200);
+    }
+  }
+
+  function endGame(note=null) {
+    clearInterval(timerInt);
+    timerInt = null;
+    show('results');
+
+    let scoreText = '';
+    if (gameMode === 'exam') {
+      const pct = total ? Math.round((score / total) * 100) : 0;
+      scoreText = `Exam score: ${pct}/100 (${score}/${total})`;
+      if (pct >= 90) unlockAch('score90');
+    } else if (gameMode === 'time') {
+      scoreText = `Time Attack: ${score} correct (${total} attempted)`;
+      if (score >= 40) unlockAch('time40');
+    } else if (gameMode === 'daily') {
+      scoreText = `Daily: ${score}/${total} correct`;
+    } else if (gameMode === 'survival') {
+      scoreText = `Survival: ${score} correct before failure`;
+    } else {
+      scoreText = `Practice: ${score}/${total} correct`;
+    }
+    if (note) scoreText += ` · ${note}`;
+
+    $('scoreLine').textContent = scoreText;
+    $('rewardLine').textContent = `+${earnedXPThisRun} XP`;
+
+    $('btnReview').disabled = (mistakes.length === 0);
+    $('review').innerHTML = '';
+    saveProgress();
+    syncHUD();
+  }
+
+  // Lifeline
+  $('btnLifeline').addEventListener('click', () => {
+    if (lifelines <= 0 || !current || locked) return;
+    lifelines--;
+    syncRunHUD();
+
+    const all = [...document.querySelectorAll('.ans')];
+    const correct = all.find(x => x.textContent === current.a);
+    const wrong = all.filter(x => x !== correct && !x.classList.contains('hide'));
+    shuffle(wrong).slice(1).forEach(x => x.classList.add('hide'));
+  });
+
+  function start(modeName) {
+    if (modeName === 'time' && PROG.level < 5) return toast('Time Attack unlocks at Level 5');
+    if (modeName === 'survival' && PROG.level < 3) return toast('Survival unlocks at Level 3');
+
+    resetRun();
+    gameMode = modeName;
+    examLimit = parseInt($('examCount').value, 10);
+    show('game');
+
+    if (modeName === 'time') {
+      $('timer').style.display = 'block';
+      timeLeft = 90;
+      $('timer').textContent = timeLeft;
+      timerInt = setInterval(() => {
+        timeLeft--;
+        $('timer').textContent = timeLeft;
+        if (timeLeft <= 0) endGame();
+      }, 1000);
+    }
+
+    renderQ();
+  }
+
+  function startDaily() {
+    if (PROG.daily.date !== todayKey()) {
+      PROG.daily = { date: todayKey(), completed: false };
+      saveProgress();
+    }
+    if (PROG.daily.completed) return toast('Daily already completed today');
+    start('daily');
+  }
+
+  // Menu wiring
+  $('btnMenu').addEventListener('click', () => show('menu'));
+  $('modePractice').addEventListener('click', () => start('practice'));
+  $('modeExam').addEventListener('click', () => start('exam'));
+  $('modeTime').addEventListener('click', () => { if (!$('modeTime').classList.contains('locked')) start('time'); });
+  $('modeSurvival').addEventListener('click', () => { if (!$('modeSurvival').classList.contains('locked')) start('survival'); });
+  $('btnDaily').addEventListener('click', () => startDaily());
+
+  $('btnNext').addEventListener('click', () => { if (gameMode !== 'time') renderQ(); });
+  $('btnRestart').addEventListener('click', () => start(gameMode || 'practice'));
+  $('btnRestart2').addEventListener('click', () => start(gameMode || 'practice'));
+
+  $('btnAchievements').addEventListener('click', () => { renderAchievements(); show('achievements'); });
+  $('btnBackFromAch').addEventListener('click', () => show('menu'));
+
+  $('btnReview').addEventListener('click', () => {
+    const wrap = $('review');
+    wrap.innerHTML = '';
+    if (!mistakes.length) return (wrap.innerHTML = '<div class="note">No mistakes.</div>');
+    mistakes.forEach(m => {
+      const div = document.createElement('div');
+      div.className = 'card';
+      div.style.padding = '12px';
+      div.style.marginTop = '10px';
+      div.innerHTML = `<div style="font-weight:950">${m.q}</div>
+        <div class="note" style="margin-top:8px">Picked: <b>${m.picked}</b><br>Correct: <b>${m.correct}</b></div>`;
+      wrap.appendChild(div);
+    });
+  });
+
+  $('btnResetProgress').addEventListener('click', () => {
+    if (!confirm('Reset all progress? This clears XP, level, streak, achievements and daily status.')) return;
+    localStorage.removeItem(STORE_KEY);
+    PROG = loadProgress();
+    resetRun();
+    syncHUD();
+    toast('Progress reset');
+  });
+
+  // Daily rollover + init
+  if (PROG.daily.date !== todayKey()) {
+    PROG.daily = { date: todayKey(), completed: false };
+    saveProgress();
+  }
+  syncHUD();
+  syncRunHUD();
+  show('menu');
+});
+</script>
+</body>
+</html>
